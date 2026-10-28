@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum UserStatus { ACTIVE SUSPENDED CLOSED }
+enum KycStatus { NOT_STARTED PENDING VERIFIED REJECTED }
+enum AssetType { FIAT CRYPTO }
+enum WalletStatus { ACTIVE FROZEN CLOSED }
+enum RequestType { DEPOSIT WITHDRAWAL BILL_PAYMENT CARD_REQUEST EXCHANGE_ORDER }
+enum RequestStatus { PENDING APPROVED REJECTED PROCESSING COMPLETED FAILED CANCELLED }
+enum TransactionType { DEPOSIT WITHDRAWAL TRANSFER BILL_PAYMENT EXCHANGE FEE ADJUSTMENT }
+enum TransactionStatus { PENDING POSTED FAILED REVERSED }
+enum KycStatusCase { PENDING APPROVED REJECTED }
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  passwordHash String
+  fullName String
+  status UserStatus @default(ACTIVE)
+  isAdmin Boolean @default(false)
+  kycStatus KycStatus @default(NOT_STARTED)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  wallets Wallet[]
+  financialRequests FinancialRequest[]
+  auditEvents AuditLog[]
+  ledgerTransactions LedgerTransaction[]
+  kycCases KycCase[]
+}
+model Asset {
+  id String @id @default(cuid())
+  symbol String @unique
+  name String
+  type AssetType
+  decimals Int
+  wallets Wallet[]
+}
+model Wallet {
+  id String @id @default(cuid())
+  userId String
+  assetId String
+  status WalletStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  ledgerAccount LedgerAccount?
+  @@unique([userId, assetId])
+  @@index([userId, createdAt])
+}
+model LedgerAccount {
+  id String @id @default(cuid())
+  walletId String @unique
+  currency String
+  balanceMinor BigInt @default(0)
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  entries LedgerEntry[]
+}
+model LedgerTransaction {
+  id String @id @default(cuid())
+  initiatedById String?
+  type TransactionType
+  status TransactionStatus @default(PENDING)
+  currency String
+  amountMinor BigInt
+  description String?
+  idempotencyKey String? @unique
+  createdAt DateTime @default(now())
+  initiatedBy User? @relation(fields: [initiatedById], references: [id], onDelete: SetNull)
+  entries LedgerEntry[]
+  @@index([initiatedById, createdAt])
+}
+model LedgerEntry {
+  id String @id @default(cuid())
+  transactionId String
+  accountId String
+  amountMinor BigInt
+  createdAt DateTime @default(now())
+  transaction LedgerTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  account LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  @@index([accountId, createdAt])
+}
+model FinancialRequest {
+  id String @id @default(cuid())
+  userId String
+  type RequestType
+  status RequestStatus @default(PENDING)
+  currency String
+  amountMinor BigInt
+  feeMinor BigInt @default(0)
+  idempotencyKey String @unique
+  destination String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String?
+  action String
+  targetType String
+  targetId String?
+  createdAt DateTime @default(now())
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  @@index([createdAt])
+}
+model KycCase {
+  id String @id @default(cuid())
+  userId String
+  status KycStatusCase @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  @@index([status, createdAt])
+}
