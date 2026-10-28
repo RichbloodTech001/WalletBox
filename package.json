@@ -1,0 +1,16 @@
+{
+  "name": "walletbox-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WalletBox full-stack fintech application starter; providers intentionally disconnected",
+  "workspaces": ["apps/web", "apps/api"],
+  "scripts": {
+    "dev:api": "npm run dev --workspace @walletbox/api",
+    "dev:web": "npm run dev --workspace @walletbox/web",
+    "build": "npm run build --workspace @walletbox/api && npm run build --workspace @walletbox/web",
+    "test": "npm run test --workspace @walletbox/api",
+    "db:generate": "npm run db:generate --workspace @walletbox/api",
+    "db:migrate": "npm run db:migrate --workspace @walletbox/api"
+  },
+  "engines": { "node": ">=20" }
+}
